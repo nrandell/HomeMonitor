@@ -7,23 +7,23 @@ namespace OilPalClient
 {
     public class Reading
     {
-        private string data;
-        private string device;
-        private string flow;
-        private string receiveCount;
-        private string rtAddress;
-        private string rxTime;
+        public string Data {  get; }
+        public string Device { get; }
+        public string Flow { get; }
+        public string ReceiveCount { get; }
+        public string RfAddress { get; }
+        public string RxTime { get; }
 
-        public Reading(string device, string rtAddress, string receiveCount, string rxTime, string data, string flow)
+        public Reading(string device, string rfAddress, string receiveCount, string rxTime, string data, string flow)
         {
-            this.device = device;
-            this.rtAddress = rtAddress;
-            this.receiveCount = receiveCount;
-            this.rxTime = rxTime;
-            this.data = data;
-            this.flow = flow;
+            this.Device = device;
+            this.RfAddress = rfAddress;
+            this.ReceiveCount = receiveCount;
+            this.RxTime = rxTime;
+            this.Data = data;
+            this.Flow = flow;
         }
 
-        public override string ToString() => $"{device} {rtAddress} {receiveCount} {rxTime} {receiveCount} {data} {flow}";
+        public override string ToString() => $"{Device} {RfAddress} {ReceiveCount} {RxTime} {ReceiveCount} {Data} {Flow}";
     }
 }

@@ -34,6 +34,7 @@ namespace OilPalClient
 
         private static async Task RunAsync(CancellationToken cancel)
         {
+            var cache = new Dictionary<string,Reading>();
             while (!cancel.IsCancellationRequested)
             {
                 var readings = await ReadAsync(cancel);
@@ -41,7 +42,20 @@ namespace OilPalClient
                 {
                     foreach (var reading in readings)
                     {
-                        Console.WriteLine($"Got {reading}");
+                        bool changed;
+                        Reading latest;
+                        if (cache.TryGetValue(reading.Device, out latest))
+                        {
+                            changed = !string.Equals(reading.RxTime, latest.RxTime);
+                        } else
+                        {
+                            changed = true;
+                        }
+                        if (changed)
+                        {
+                            cache[reading.Device] = reading;
+                            Console.WriteLine($"Got {reading}");
+                        }
                     }
                 }
                 await Task.Delay(60000, cancel);
