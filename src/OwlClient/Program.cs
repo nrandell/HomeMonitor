@@ -88,33 +88,5 @@ namespace OwlClient
             };
 
         }
-        private static async Task OldRun(CancellationToken cancel)
-        {
-            using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp))
-            {
-                var multicastAddress = IPAddress.Parse("224.192.32.19");
-                var localAddress = IPAddress.Parse("192.168.100.131");
-                var localEndpoint = new IPEndPoint(localAddress, 22600);
-                socket.Bind(localEndpoint);
-
-                var multicastOption = new MulticastOption(multicastAddress, localAddress);
-                socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, multicastOption);
-
-                var buffer = new byte[10240];
-                var remoteEndpoint = new IPEndPoint(IPAddress.Any, 0);
-                var segment = new ArraySegment<byte>(buffer);
-                Console.WriteLine("Starting loop");
-                while (!cancel.IsCancellationRequested)
-                {
-                    var result = await socket.ReceiveFromAsync(segment, SocketFlags.None, remoteEndpoint);
-                    var ascii = Encoding.ASCII.GetString(buffer, 0, result.ReceivedBytes);
-                    Console.WriteLine($"Received {result.ReceivedBytes} from {result.RemoteEndPoint}: {ascii}");
-                    Console.Out.Flush();
-                }
-                Console.WriteLine("Stopping loop");
-
-
-            }
-        }
     }
 }
