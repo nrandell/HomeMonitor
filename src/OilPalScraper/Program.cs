@@ -43,7 +43,7 @@ namespace OilPalScraper
         private static async Task<Reading> ReadAsync(CancellationToken cancel)
         {
             var timestamp = DateTime.UtcNow;
-            var response = await _client.GetAsync("http://app.oilpal.com/Report/GetChartData?SerialNo=BB-0000-0000-3860&DeviceNo=0&NumericPeriod=1");
+            var response = await _client.GetAsync("http://app.oilpal.com/Report/GetChartData?SerialNo=BB-0000-0000-3860&DeviceNo=0&NumericPeriod=2");
             Reading results = null;
             if (response.IsSuccessStatusCode)
             {
