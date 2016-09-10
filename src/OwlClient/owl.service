@@ -1,0 +1,8 @@
+[Unit]
+After=network.target
+
+[Service]
+ExecStart=/home/nick/HomeMonitor/src/OwlClient/startup.sh
+
+[Install]
+WantedBy=default.target
