@@ -46,66 +46,83 @@ namespace MiosMonitor
             while (!token.IsCancellationRequested)
             {
                 await Task.Delay(2000, token);
-                var deltaResponse = await _client.GetAsync($"http://vera.home:3480/data_request?id=sdata&loadtime={loadTime}&dataversion={dataVersion}&timeout=30&minimumdelay=2000");
-                json = await deltaResponse.Content.ReadAsStringAsync();
-                parsed = _parser.Parse(json);
-                var versionShown = false;
-                if (parsed.Devices != null)
+                json = await TryGetJson(json, loadTime, dataVersion);
+                if (json != null)
                 {
-                    foreach (var device in parsed.Devices)
+                    parsed = _parser.Parse(json);
+                    var versionShown = false;
+                    if (parsed.Devices != null)
                     {
-                        Device current;
-                        if (latest.TryGetValue(device.Id, out current))
+                        foreach (var device in parsed.Devices)
                         {
-                            var displayed = false;
-                            foreach (var property in device.GetType().GetProperties().Where(p => p.Name != "Name" && p.Name != "Category"))
+                            Device current;
+                            if (latest.TryGetValue(device.Id, out current))
                             {
-
-                                var previousValue = property.GetValue(current);
-                                var newValue = property.GetValue(device);
-                                if (!object.Equals(newValue, previousValue))
+                                var displayed = false;
+                                foreach (var property in device.GetType().GetProperties().Where(p => p.Name != "Name" && p.Name != "Category"))
                                 {
-                                    if (!versionShown)
-                                    {
-                                        Console.WriteLine($"{DateTime.Now}: Gone to version {parsed.DataVersion} {parsed.LoadTime}");
-                                        versionShown = true;
-                                    }
-                                    if (!displayed)
-                                    {
-                                        string name;
-                                        if (!names.TryGetValue(device.Id, out name))
-                                        {
-                                            name = $"Id {device.Id}";
-                                        }
 
-                                        Console.WriteLine($"Change in {name} ({device.Id})");
-                                        displayed = true;
+                                    var previousValue = property.GetValue(current);
+                                    var newValue = property.GetValue(device);
+                                    if (!object.Equals(newValue, previousValue))
+                                    {
+                                        if (!versionShown)
+                                        {
+                                            Console.WriteLine($"{DateTime.Now}: Gone to version {parsed.DataVersion} {parsed.LoadTime}");
+                                            versionShown = true;
+                                        }
+                                        if (!displayed)
+                                        {
+                                            string name;
+                                            if (!names.TryGetValue(device.Id, out name))
+                                            {
+                                                name = $"Id {device.Id}";
+                                            }
+
+                                            Console.WriteLine($"Change in {name} ({device.Id})");
+                                            displayed = true;
+                                        }
+                                        Console.WriteLine($"{property.Name}: {previousValue} to {newValue}");
                                     }
-                                    Console.WriteLine($"{property.Name}: {previousValue} to {newValue}");
                                 }
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"New device {device.Id} {device.Name}");
-                            if (string.IsNullOrWhiteSpace(device.Name))
-                            {
-                                names[device.Id] = $"Id {device.Id}";
                             }
                             else
                             {
-                                names[device.Id] = device.Name;
+                                Console.WriteLine($"New device {device.Id} {device.Name}");
+                                if (string.IsNullOrWhiteSpace(device.Name))
+                                {
+                                    names[device.Id] = $"Id {device.Id}";
+                                }
+                                else
+                                {
+                                    names[device.Id] = device.Name;
+                                }
                             }
+                            latest[device.Id] = device;
                         }
-                        latest[device.Id] = device;
+                        loadTime = parsed.LoadTime;
+                        dataVersion = parsed.DataVersion;
                     }
-                    loadTime = parsed.LoadTime;
-                    dataVersion = parsed.DataVersion;
-                }
 
+                }
             }
 
 
+        }
+
+        private static async Task<string> TryGetJson(string json, long loadTime, long dataVersion)
+        {
+            try
+            {
+                var deltaResponse = await _client.GetAsync($"http://vera.home:3480/data_request?id=sdata&loadtime={loadTime}&dataversion={dataVersion}&timeout=30&minimumdelay=2000");
+                json = await deltaResponse.Content.ReadAsStringAsync();
+                return json;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return null;
+            }
         }
     }
 }
