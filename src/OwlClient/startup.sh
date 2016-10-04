@@ -2,5 +2,5 @@
 
 export HOME=/root
 cd /home/nick/HomeMonitor/src/OwlClient
-dotnet  -v run > owl.txt
+exec dotnet  -v run >> owl.txt
 

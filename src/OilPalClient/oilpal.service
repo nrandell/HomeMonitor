@@ -3,6 +3,7 @@ After=network.target
 
 [Service]
 ExecStart=/home/nick/HomeMonitor/src/OilPalClient/startup.sh
+Restart=always
 
 [Install]
 WantedBy=default.target
