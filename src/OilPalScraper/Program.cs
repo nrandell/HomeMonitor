@@ -35,15 +35,22 @@ namespace OilPalScraper
             while (!cancel.IsCancellationRequested)
             {
                 var readings = await ReadAsync(cancel);
-                Console.WriteLine(readings);
-                await Task.Delay(60000, cancel);
+                var lastReading = readings.Levels[readings.Levels.Length - 1];
+                var result = new {
+                    TimestampUtc = readings.TimestampUtc,
+                    Reading = lastReading
+                };
+                var json = JsonConvert.SerializeObject(result, Formatting.None);
+                await Console.Out.WriteLineAsync(json);
+                await Console.Out.FlushAsync();
+                await Task.Delay(TimeSpan.FromHours(1), cancel);
             }
         }
 
         private static async Task<Reading> ReadAsync(CancellationToken cancel)
         {
             var timestamp = DateTime.UtcNow;
-            var response = await _client.GetAsync("http://app.oilpal.com/Report/GetChartData?SerialNo=BB-0000-0000-3860&DeviceNo=0&NumericPeriod=2");
+            var response = await _client.GetAsync("http://app.oilpal.com/Report/GetChartData?SerialNo=BB-0000-0000-3860&DeviceNo=0&NumericPeriod=1");
             Reading results = null;
             if (response.IsSuccessStatusCode)
             {
@@ -64,5 +71,5 @@ namespace OilPalScraper
             }
             return results;
         }
-}
+    }
 }
