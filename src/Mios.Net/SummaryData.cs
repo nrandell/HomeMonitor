@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -26,7 +27,7 @@ namespace Mios.Net
         public Section[] Sections { get; set; }
         public Room[] Rooms { get; set; }
         public Scene[] Scenes { get; set; }
-        public Device[] Devices { get; set; }
+        public JObject[] Devices { get; set; }
         public Category[] Categories { get; set; }
 
 

@@ -7,6 +7,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mios.Net;
 using System.Reflection;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 
 namespace MiosMonitor
 {
@@ -19,7 +21,7 @@ namespace MiosMonitor
         {
             try
             {
-                Run(CancellationToken.None).GetAwaiter().GetResult();
+                RunAsync(CancellationToken.None).GetAwaiter().GetResult();
 
             }
             catch (Exception ex)
@@ -32,7 +34,7 @@ namespace MiosMonitor
             }
         }
 
-        private static async Task Run(CancellationToken token)
+        private static async Task RunAsync(CancellationToken token)
         {
             var response = await _client.GetAsync("http://vera.home:3480/data_request?id=sdata");
             var json = await response.Content.ReadAsStringAsync();
@@ -40,13 +42,13 @@ namespace MiosMonitor
             var loadTime = parsed.LoadTime;
             var dataVersion = parsed.DataVersion;
 
-            var names = parsed.Devices.ToDictionary(d => d.Id, d => d.Name);
-            var latest = parsed.Devices.ToDictionary(d => d.Id);
+            var names = parsed.Devices.ToDictionary(d => (string)d["id"], d => (string)d["name"]);
+            var latest = parsed.Devices.ToDictionary(d => (string)d["id"]);
 
             while (!token.IsCancellationRequested)
             {
                 await Task.Delay(2000, token);
-                json = await TryGetJson(json, loadTime, dataVersion);
+                json = await TryGetJsonAsync(json, loadTime, dataVersion);
                 if (json != null)
                 {
                     parsed = _parser.Parse(json);
@@ -55,50 +57,82 @@ namespace MiosMonitor
                     {
                         foreach (var device in parsed.Devices)
                         {
-                            Device current;
-                            if (latest.TryGetValue(device.Id, out current))
+                            JObject changed = null;
+                            var deviceId = (string)device["id"];
+                            if (latest.TryGetValue(deviceId, out var current))
                             {
+                                JArray changes = null;
                                 var displayed = false;
-                                foreach (var property in device.GetType().GetProperties().Where(p => p.Name != "Name" && p.Name != "Category"))
+                                //foreach (var property in device.GetType().GetProperties().Where(p => p.Name != "Name" && p.Name != "Category"))
+                                foreach (var property in device)
                                 {
+                                    var previousValue = (string)current.GetValue(property.Key);
+                                    var newValue = (string)property.Value;
+                                    if (!newValue.Equals(previousValue))
 
-                                    var previousValue = property.GetValue(current);
-                                    var newValue = property.GetValue(device);
-                                    if (!object.Equals(newValue, previousValue))
+                                    //var previousValue = property.GetValue(current);
+                                    //var newValue = property.GetValue(device);
+                                    //if (!object.Equals(newValue, previousValue))
                                     {
+                                        if (changed == null)
+                                        {
+                                            changes = new JArray();
+                                            changed = new JObject();
+                                            changed.Add("dataVersion", parsed.DataVersion);
+                                            changed.Add("loadTime", DateTimeOffset.FromUnixTimeSeconds(parsed.LoadTime));
+                                            changed.Add("changes", changes);
+                                            changed.Add("device", device);
+                                        }
                                         if (!versionShown)
                                         {
-                                            Console.WriteLine($"{DateTime.Now}: Gone to version {parsed.DataVersion} {parsed.LoadTime}");
+                                            //Console.WriteLine($"{DateTime.Now}: Gone to version {parsed.DataVersion} {parsed.LoadTime}");
                                             versionShown = true;
                                         }
                                         if (!displayed)
                                         {
-                                            string name;
-                                            if (!names.TryGetValue(device.Id, out name))
+                                            if (!names.TryGetValue(deviceId, out string name))
                                             {
-                                                name = $"Id {device.Id}";
+                                                name = $"Id {deviceId}";
                                             }
 
-                                            Console.WriteLine($"Change in {name} ({device.Id})");
+                                            //Console.WriteLine($"Change in {name} ({deviceId})");
                                             displayed = true;
+                                            changed.Add("name", name);
                                         }
-                                        Console.WriteLine($"{property.Name}: {previousValue} to {newValue}");
+                                        //Console.WriteLine($"{property.Name}: {previousValue} to {newValue}");
+                                        //Console.WriteLine($"{property.Key}: {previousValue} to {newValue}");
+                                        var change = new JObject();
+                                        change.Add("property", property.Key);
+                                        change.Add("from", current.GetValue(property.Key));
+                                        change.Add("to", property.Value);
+                                        changes.Add(change);
                                     }
                                 }
                             }
                             else
                             {
-                                Console.WriteLine($"New device {device.Id} {device.Name}");
-                                if (string.IsNullOrWhiteSpace(device.Name))
+                                var deviceName = (string)device["name"];
+                                //Console.WriteLine($"New device {deviceId} {deviceName}");
+                                if (string.IsNullOrWhiteSpace(deviceName))
                                 {
-                                    names[device.Id] = $"Id {device.Id}";
+                                    names[deviceId] = $"Id {deviceId}";
                                 }
                                 else
                                 {
-                                    names[device.Id] = device.Name;
+                                    names[deviceId] = deviceName;
                                 }
+                                changed = new JObject();
+                                changed.Add("dataVersion", parsed.DataVersion);
+                                changed.Add("loadTime", DateTimeOffset.FromUnixTimeSeconds(parsed.LoadTime));
+                                changed.Add("device", device);
+                                changed.Add("name", deviceName);
                             }
-                            latest[device.Id] = device;
+                            latest[deviceId] = device;
+                            if (changed != null)
+                            {
+                                var changedJson = changed.ToString(Formatting.None);
+                                Console.WriteLine(changedJson);
+                            }
                         }
                         loadTime = parsed.LoadTime;
                         dataVersion = parsed.DataVersion;
@@ -110,7 +144,7 @@ namespace MiosMonitor
 
         }
 
-        private static async Task<string> TryGetJson(string json, long loadTime, long dataVersion)
+        private static async Task<string> TryGetJsonAsync(string json, long loadTime, long dataVersion)
         {
             try
             {
