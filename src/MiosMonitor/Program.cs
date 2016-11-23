@@ -47,10 +47,10 @@ namespace MiosMonitor
 
             while (!token.IsCancellationRequested)
             {
-                await Task.Delay(2000, token);
-                json = await TryGetJsonAsync(json, loadTime, dataVersion);
+                json = await TryGetJsonAsync(json, loadTime, dataVersion, token);
                 if (json != null)
                 {
+                    var received = DateTimeOffset.UtcNow;
                     parsed = _parser.Parse(json);
                     var versionShown = false;
                     if (parsed.Devices != null)
@@ -78,6 +78,7 @@ namespace MiosMonitor
                                         {
                                             changes = new JArray();
                                             changed = new JObject();
+                                            changed.Add("timestamp", received);
                                             changed.Add("dataVersion", parsed.DataVersion);
                                             changed.Add("loadTime", DateTimeOffset.FromUnixTimeSeconds(parsed.LoadTime));
                                             changed.Add("changes", changes);
@@ -122,6 +123,7 @@ namespace MiosMonitor
                                     names[deviceId] = deviceName;
                                 }
                                 changed = new JObject();
+                                changed.Add("timestamp", received);
                                 changed.Add("dataVersion", parsed.DataVersion);
                                 changed.Add("loadTime", DateTimeOffset.FromUnixTimeSeconds(parsed.LoadTime));
                                 changed.Add("device", device);
@@ -144,17 +146,22 @@ namespace MiosMonitor
 
         }
 
-        private static async Task<string> TryGetJsonAsync(string json, long loadTime, long dataVersion)
+        private static async Task<string> TryGetJsonAsync(string json, long loadTime, long dataVersion, CancellationToken cancel)
         {
             try
             {
-                var deltaResponse = await _client.GetAsync($"http://vera.home:3480/data_request?id=sdata&loadtime={loadTime}&dataversion={dataVersion}&timeout=30&minimumdelay=2000");
+                var deltaResponse = await _client.GetAsync($"http://vera.home:3480/data_request?id=sdata&loadtime={loadTime}&dataversion={dataVersion}&timeout=30&minimumdelay=2000", cancel);
                 json = await deltaResponse.Content.ReadAsStringAsync();
                 return json;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error: {ex.Message}");
+                await Task.Delay(2000, cancel);
                 return null;
             }
         }
