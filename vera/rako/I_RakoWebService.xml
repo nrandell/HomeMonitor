@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<implementation>
+    <settings>
+    </settings>
+    <functions>
+        function initialize(lul_device)
+            luup.log("Initializing rako")
+            this_plugin = require("L_RakoWebService")
+            return this_plugin.rwsStartup(lul_device)
+        end
+    </functions>
+    <startup>rwsStartup</startup>
+    <actionList>
+        <action>
+            <serviceId>urn:nickrandell-com:serviceId:RakoWebService1</serviceId>
+            <name>SendCommand</name>
+            <run>
+                SendCommand(lul_device, lul_settings)
+            </run>
+        </action>
+    </actionList>
+</implementation>
